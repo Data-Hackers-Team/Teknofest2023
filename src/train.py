@@ -1,16 +1,16 @@
+from transformers import AdamW
+from torchmetrics.classification import MulticlassF1Score
 from sklearn.model_selection import StratifiedKFold
 
 from src.config import CFG
 from src.data_setup import dataloader
+from src.model import CustomModel
 from src.utils import preprocess, train_loop, test_loop
 
 
 class Train:
-    def __init__(self, data_path, model, optimizer, metric):
+    def __init__(self, data_path):
         self.data_path = data_path
-        self.model = model
-        self.optimizer = optimizer
-        self.metric = metric
 
         self.skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=44)
         self.oof = []
@@ -34,22 +34,25 @@ class Train:
             train_dataloader = dataloader(train, loader_type="train")
             val_dataloader = dataloader(val, loader_type="val")
 
+            # Model 
+            model = CustomModel().to(CFG.device)
+            optimizer = AdamW(model.parameters(), lr=CFG.learning_rate)
+            metric = MulticlassF1Score(num_classes=CFG.num_labels, average="macro").to(
+                CFG.device
+            )
+
             # Train process
             for epoch in range(CFG.epochs):
                 train_loop(
-                    model=self.model,
-                    train_dataloader=train_dataloader,
-                    optimizer=self.optimizer,
+                    model=model, train_dataloader=train_dataloader, optimizer=optimizer
                 )
 
-                test_loop(
-                    model=self.model, test_dataloader=val_dataloader, metric=self.metric
-                )
+                test_loop(model=model, test_dataloader=val_dataloader, metric=metric)
 
-                score = self.metric.compute().item()
+                score = metric.compute().item()
                 self.oof.append(score)
 
                 print("\n")
                 print("Epoch:", epoch)
                 print("Score:", score)
-                self.metric.reset()
+                metric.reset()
