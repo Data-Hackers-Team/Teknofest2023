@@ -21,7 +21,7 @@ class CustomDataset(Dataset):
 
 
 def dataloader(data: pd.DataFrame, loader_type: str = "train"):
-    assert type in ["train", "val", "test"]
+    assert loader_type in ["train", "val", "test"]
 
     # Initialize tokenizer
     tokenizer = AutoTokenizer.from_pretrained(CFG.model_path)

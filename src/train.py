@@ -27,8 +27,8 @@ class Train:
             self.skf.split(self.data["text"], self.data["labels"])
         ):
             # Data split
-            train = self.data.loc[train_index]
-            val = self.data.loc[val_index]
+            train = self.data.loc[train_index].reset_index().drop("index", axis=1)
+            val = self.data.loc[val_index].reset_index().drop("index", axis=1)
 
             # Dataloader
             train_dataloader = dataloader(train, loader_type="train")

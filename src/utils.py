@@ -28,6 +28,7 @@ def preprocess(data_path: str) -> pd.DataFrame:
     # Prepare for model
     data.drop(["id", "is_offensive"], axis=1, inplace=True)
     data.rename(columns={"target": "labels"}, inplace=True)
+    data = data.reset_index().drop("index", axis=1)
 
     return data
 
