@@ -4,3 +4,4 @@ torchmetrics
 transformers
 scikit-learn
 tqdm
+gradio

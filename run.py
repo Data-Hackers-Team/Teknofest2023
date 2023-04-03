@@ -1,6 +1,4 @@
-from src.train import Train
-
+from src.gradio import iface, auth
 
 if __name__ == "__main__":
-    obj = Train(data_path="teknofest_train_final.csv")
-    obj.execute()
+    iface.launch(share=True, auth=auth)
