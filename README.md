@@ -3,7 +3,7 @@
 
 ### Takım: Data Hackers
 
-<img src='data/img/img.jpg' width='450'>
+<img src="src/data/img.jpg" width='450'>
 
 ---
 ### Gereksinimler
