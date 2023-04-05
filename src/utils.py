@@ -1,8 +1,21 @@
+import os
+import copy
 import torch
+import random
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
 from src.config import CFG
+
+
+def set_random_seed(seed):
+    random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
 
 
 def preprocess(data_path: str) -> pd.DataFrame:
@@ -33,48 +46,101 @@ def preprocess(data_path: str) -> pd.DataFrame:
     return data
 
 
-def train_loop(model, train_dataloader, optimizer):
-    # Prepare model for training
+def train_val_fn(
+    model,
+    optimizer,
+    train_dataloader,
+    val_dataloader,
+    fold,
+    epoch,
+    early_stop_threshold,
+    swa_model,
+    swa_scheduler,
+    scheduler,
+    swa_step=False,
+):
     model.train()
 
-    for batch in tqdm(train_dataloader):
-        # Prepare model inputs
+    best_score = 0
+    for idx, batch in enumerate(train_dataloader):
         input_ids = batch["input_ids"].to(CFG.device)
         attention_mask = batch["attention_mask"].to(CFG.device)
         labels = batch["labels"].to(CFG.device)
 
-        # Get model outputs
         outputs = model(
             input_ids=input_ids, attention_mask=attention_mask, labels=labels
         )
 
-        # Set gradients to zero
         optimizer.zero_grad()
 
-        # Calculate loss
         loss = outputs.loss
         loss.backward()
 
-        # Perform optimization
         optimizer.step()
 
+        if swa_step:
+            swa_model.update_parameters(model)
+            swa_scheduler.step()
+        else:
+            scheduler.step()
 
-def test_loop(model, test_dataloader, metric):
-    # Prepare model for testing (or validation)
+        if (idx % 1000 == 0) or ((idx + 1) == len(train_dataloader)):
+
+            score = val_fn(model, val_dataloader)
+            print(score)
+            print(best_score)
+
+            if score > best_score:
+                print(
+                    f"FOLD: {fold}, Epoch: {epoch}, Batch {idx}, F1 = {round(score,4)}, checkpoint saved."
+                )
+                best_score = score
+                early_stopping_counter = 0
+
+                with torch.inference_mode():
+                    best_model = copy.deepcopy(model.state_dict())
+                    best_swa_model = copy.deepcopy(swa_model.state_dict())
+
+                checkpoint = {
+                    "model": model.state_dict(),
+                    "best_model": best_model,
+                    "best_metric": best_score,
+                }
+                torch.save(checkpoint, f"src/pretrained_model/model_{fold}/model.pt")
+
+                if swa_step:
+                    checkpoint = {
+                        "model": model.state_dict(),
+                        "best_model": best_swa_model,
+                        "best_metric": best_score,
+                    }
+                    torch.save(
+                        checkpoint, f"src/pretrained_model/model_swa_{fold}/model.pt"
+                    )
+            else:
+                print(
+                    f"FOLD: {fold}, Epoch: {epoch}, Batch {idx}, F1 = {round(score,4)}"
+                )
+                early_stopping_counter += 1
+            if early_stopping_counter > early_stop_threshold:
+                print(f"Early stopping triggered!")
+                break
+
+
+def val_fn(model, dataloader, metric):
     model.eval()
-
     with torch.inference_mode():
-        for batch in tqdm(test_dataloader):
-            # Prepare model inputs
+        for batch in tqdm(dataloader):
+
             input_ids = batch["input_ids"].to(CFG.device)
             attention_mask = batch["attention_mask"].to(CFG.device)
             labels = batch["labels"].to(CFG.device)
 
-            # Get model outputs
             outputs = model(
                 input_ids=input_ids, attention_mask=attention_mask, labels=labels
             )
 
-            # Calculate score
             logits = torch.argmax(outputs.logits, dim=1)
             f1_score = metric(logits, labels).item()
+
+    return metric.compute().item()

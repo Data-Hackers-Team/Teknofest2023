@@ -27,7 +27,12 @@ def dataloader(data: pd.DataFrame, loader_type: str = "train"):
     tokenizer = AutoTokenizer.from_pretrained(CFG.model_path)
 
     # Create encodings
-    encodings = tokenizer(data["text"].values.tolist(), truncation=True, padding=True)
+    encodings = tokenizer(
+        data["text"].values.tolist(),
+        truncation=True,
+        padding="max_length",
+        add_special_tokens=True,
+    )
 
     # Dataset setup
     dataset = CustomDataset(encodings, data["labels"])
