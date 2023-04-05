@@ -23,7 +23,10 @@ Sanal ortamınızı kurduktan sonra requierements.txt dosyasını kullanarak kü
 pip install -r requirements.txt
 ```
 ### Uygulamanın Çalıştırılması
-TODO
+Gradio servisinin çalıştırılması için run.py dosyasını çalıştırmanız gerekmektedir. Dosyayı çalıştırdıktan sonra uygulama infrence haline gelecektir. Tahminlerinizi yapabilirsiniz.
+```bash
+python run.py
+```
 
 ### Analiz ve model denemesi dosyaları
 `/notebook` klasörü altındaki notebook dosyalarını:
